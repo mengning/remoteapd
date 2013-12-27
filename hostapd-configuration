@@ -1,0 +1,62 @@
+无线AP可以为传统的有线局域网提供无线扩展接入，而一般的无线网卡只能作为客户端连接到无线AP。目前市面上很多无线网卡都具有模拟AP功能，不单可以作为无线客户端连接上无线网络，也可以切换为模拟AP，供其他无线客户端连接。
+随着个人越来越多的其他的无线设备如手机、PAD以及很多类似平板设备的普及,我们发现很多时候我们的外出等特殊情况下让我们的其他设备接入有线网络已经成为了一个现实问题,那么我们可以充分发挥我们的随身笔记本的功能,将其通过软件设置成为模拟AP,这样就可以解决很多特殊情况下其他设备上网的问题了,如果您是一位WINDONS的用户,那么在win7下面用"承载网络"这一功能来模拟AP。在LINUX系统下我们也可以通过Hostapd软件配置来实现这样的功能。
+一、实验环境：
+操作系统：Ubuntu
+内核版本：Ubuntu13.04
+无线网卡型号：tp-link TL-WN310G
+二、无线AP创建过程：
+#安装依赖文件，libnl库主要提供基于LINUX内核的netlink protocol相关APs函数。	#libssl-dev库提供ssl开发库
+hr@ubuntu:~$ sudo apt-get install libnl-dev libpopt-dev libssl-dev
+#http://hostap.epitest.fi/hostapd/上下载hostapd
+#注意下载（Latest release: hostapd-2.0.tar.gz）
+#解压
+tar -zxvf hostapd-2.0.tar.gz
+#进入解压后的hostapd-2.0/hostapd/
+cd hostapd-2.0/hostapd/
+#defconfig 默认的配置，备份一下，便于恢复
+ cp defconfig .config
+#安装Hostapd
+make
+sudo make install
+#插上无线网卡，ifconfig命令下应该会显示有wlan0，表明无线网卡已经插上
+#配置wlan0网口
+sudo gedit  /etc/network/interfaces
+#添加
+auto wlan0
+iface wlan0 inet static
+address 192.168.0.1
+netmask 255.255.255.0
+#准备hostapd的配置文件
+sudo gedit /etc/hostapd.conf
+添加
+interface=wlan0//接入点设备名称注意不要包含ap后缀，即如果该设备称为wlan0ap，					 填写wlan0即可
+driver=nl80211//设置无线驱动类型
+ssid=fyqhr		//AP热点名字
+hw_mode=g//指定802.11协议包括a=IEEE802.11a,b = IEEE 802.11b, g = IEEE 802.11g
+channel=11//channel：设定无线频道
+dtim_period=1//设置DTIM周期，稳定的关键。AP通过设置DTIM的间隔（缺省是一个beacon时间，100ms），根据这个间隔发送组播流量。
+rts_threshold=2347//可考虑注销此项目来提高网卡性能，如果更改后变得不稳定则取消注销。
+fragm_threshold=2346//可考虑注销此项目来提高网卡性能，如果更改后变得不稳定则取消注销
+macaddr_acl=0//macaddr_acl：可选，指定MAC地址过滤规则，0表示除非在禁止列表否则允许，1表示除非在允许列表否则禁止，2表示使用外部RADIUS服务器；
+auth_algs=3//auth_algs指定采用哪种认证算法，采用位域（bit fields）方式来制定，其中第一位表示开放系统认证（Open System Authentication, OSA），第二位表示共享密钥认证（Shared Key Authentication, SKA）。如果设置alth_algs的值为1，表示只采用OSA；如果为3则两种认证方式都支持。
+#ieee80211n=0//如果是n网卡则参数为1，否则为0
+wpa=2//老师原本值为3，改成2后手机连接AP成功，wpa：指定WPA类型，这是一个位域值（bit fields），第一位表示启用WPA，第二位表示启用WPA2。在我的配置中，无论设置成1、2或3，都可以正常连接；
+wpa_passphrase=1234567890//设置密码，长度为8~63个字符
+wpa_key_mgmt=WPA-PSK//WPA加密类型
+//wpa_pairwise/rsn_pairwise：如果启用了WPA，需要指定wpa_pairwise；如果启用了WPA2，需要指定rsn_pairwise，或者采用wpa_pairwise的设定。都可以设定成TKIP、CCMP或者两者都有，具体含义我也没仔细弄清楚。一篇比较老的文章说TKIP不兼容Windows Mobile，
+wpa_pairwise=TKIP
+rsn_pairwise=CCMP
+安装dnsmasq
+ps -e | grep dnsmasq
+sudo killall dnsmasq
+sudo apt-get install dnsmasq//此时有可能ping不通域名，重启后再试一下
+配置DHCP服务器
+sudo gedit /etc/dnsmasq.conf
+添加：
+interface=wlan0
+bind-interfaces
+except-interface=lo
+dhcp-range=192.168.0.100,192.168.0.200,6h//dhcp=ranage参数为dhcp地址范围，												即租借时间6h
+dhcp-option=3,192.168.0.1
+dhcp-option=6,219.219.223.10
+

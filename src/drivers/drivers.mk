@@ -66,7 +66,35 @@ DRV_CFLAGS += -DCONFIG_DRIVER_NONE
 DRV_OBJS += src/drivers/driver_none.c
 endif
 
+
 ##### PURE AP DRIVERS
+
+ifdef CONFIG_DRIVER_NL80211EXT
+DRV_AP_CFLAGS += -DCONFIG_DRIVER_NL80211EXT
+DRV_AP_OBJS += src/drivers/driver_nl80211ext.c
+NEED_SME=y
+NEED_AP_MLME=y
+NEED_NETLINK=y
+NEED_LINUX_IOCTL=y
+NEED_RFKILL=y
+
+ifdef CONFIG_LIBNL32
+  DRV_LIBS += -lnl-3
+  DRV_LIBS += -lnl-genl-3
+  DRV_CFLAGS += -DCONFIG_LIBNL20 -I/usr/include/libnl3
+else
+  ifdef CONFIG_LIBNL_TINY
+    DRV_LIBS += -lnl-tiny
+  else
+    DRV_LIBS += -lnl
+  endif
+
+  ifdef CONFIG_LIBNL20
+    DRV_LIBS += -lnl-genl
+    DRV_CFLAGS += -DCONFIG_LIBNL20
+  endif
+endif
+endif
 
 ifdef CONFIG_DRIVER_HOSTAP
 DRV_AP_CFLAGS += -DCONFIG_DRIVER_HOSTAP

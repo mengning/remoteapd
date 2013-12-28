@@ -10,7 +10,7 @@
 #ifndef CONFIG_NATIVE_WINDOWS
 #include <grp.h>
 #endif /* CONFIG_NATIVE_WINDOWS */
-
+#include <stdio.h>
 #include "utils/common.h"
 #include "utils/uuid.h"
 #include "common/ieee802_11_defs.h"

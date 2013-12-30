@@ -796,6 +796,7 @@ OBJS += ../src/ap/gas_serv.o
 endif
 
 OBJS += ../src/drivers/driver_common.o
+#OBJS += ../src/drivers/driver_nl80211ext.o
 
 ifdef CONFIG_WPA_CLI_EDIT
 OBJS_c += ../src/utils/edit.o
@@ -902,6 +903,6 @@ hlr_auc_gw: $(HOBJS)
 clean:
 	$(MAKE) -C ../src clean
 	rm -f core *~ *.o hostapd hostapd_cli nt_password_hash hlr_auc_gw
-	rm -f *.d *.bak ../*.bak
+	rm -f *.d
 
 -include $(OBJS:%.o=%.d)

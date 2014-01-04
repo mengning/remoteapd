@@ -796,7 +796,6 @@ OBJS += ../src/ap/gas_serv.o
 endif
 
 OBJS += ../src/drivers/driver_common.o
-#OBJS += ../src/drivers/driver_nl80211ext.o
 
 ifdef CONFIG_WPA_CLI_EDIT
 OBJS_c += ../src/utils/edit.o

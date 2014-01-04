@@ -69,6 +69,7 @@ endif
 ifdef CONFIG_DRIVER_NL80211EXT
 DRV_CFLAGS += -DCONFIG_DRIVER_NL80211EXT
 DRV_OBJS += ../src/drivers/driver_nl80211ext.o
+DRV_OBJS += ../src/drivers/linux_80211_wrapper.o
 NEED_SME=y
 NEED_AP_MLME=y
 NEED_NETLINK=y

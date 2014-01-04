@@ -627,7 +627,8 @@ nl80211_get_wiphy_data_ap(struct i802_bss *bss)
 		return NULL;
 	}
 
-	eloop_register_read_sock(nl_socket_get_fd(w->nl_beacons),
+	/* eloop_register_read_sock */
+	epoll_wrapper(nl_socket_get_fd(w->nl_beacons),
 				 nl80211_recv_beacons, w, w->nl_beacons);
 
 	dl_list_add(&nl80211_wiphys, &w->list);
@@ -2818,7 +2819,8 @@ static int wpa_driver_nl80211_init_nl_global(struct nl80211_global *global)
 	nl_cb_set(global->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
 		  process_global_event, global);
 
-	eloop_register_read_sock(nl_socket_get_fd(global->nl_event),
+	/* eloop_register_read_sock */
+	epoll_wrapper(nl_socket_get_fd(global->nl_event),
 				 wpa_driver_nl80211_event_receive,
 				 global->nl_cb, global->nl_event);
 
@@ -3135,7 +3137,8 @@ static int nl80211_alloc_mgmt_handle(struct i802_bss *bss)
 	if (bss->nl_mgmt == NULL)
 		return -1;
 
-	eloop_register_read_sock(nl_socket_get_fd(bss->nl_mgmt),
+	/* eloop_register_read_sock */
+	epoll_wrapper(nl_socket_get_fd(bss->nl_mgmt),
 				 wpa_driver_nl80211_event_receive, bss->nl_cb,
 				 bss->nl_mgmt);
 
@@ -8412,7 +8415,8 @@ static int wpa_driver_nl80211_probe_req_report(void *priv, int report)
 				   NULL, 0) < 0)
 		goto out_err;
 
-	eloop_register_read_sock(nl_socket_get_fd(bss->nl_preq),
+	/* eloop_register_read_sock */
+	epoll_wrapper(nl_socket_get_fd(bss->nl_preq),
 				 wpa_driver_nl80211_event_receive, bss->nl_cb,
 				 bss->nl_preq);
 

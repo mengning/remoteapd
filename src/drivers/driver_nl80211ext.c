@@ -3048,7 +3048,7 @@ static void * wpa_driver_nl80211_init(void *ctx, const char *ifname,
 	if (wpa_driver_nl80211_finish_drv_init(drv))
 		goto failed;
 
-	drv->eapol_tx_sock = socket(PF_PACKET, SOCK_DGRAM, 0);
+	drv->eapol_tx_sock = eapol_tx_socket_create_wrapper();
 	if (drv->eapol_tx_sock < 0)
 		goto failed;
 
@@ -3064,7 +3064,7 @@ static void * wpa_driver_nl80211_init(void *ctx, const char *ifname,
 				drv->capa.flags &=
 					~WPA_DRIVER_FLAGS_EAPOL_TX_STATUS;
 		} else {
-			eloop_register_read_sock(drv->eapol_tx_sock,
+			epoll_register_wrapper(drv->eapol_tx_sock,
 				wpa_driver_nl80211_handle_eapol_tx_status,
 				drv, NULL);
 		}
@@ -3428,7 +3428,7 @@ static void wpa_driver_nl80211_deinit(void *priv)
 
 	bss->in_deinit = 1;
 	if (drv->data_tx_status)
-		eloop_unregister_read_sock(drv->eapol_tx_sock);
+		epoll_unregister_wrapper(drv->eapol_tx_sock);
 	if (drv->eapol_tx_sock >= 0)
 		close(drv->eapol_tx_sock);
 

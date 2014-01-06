@@ -145,3 +145,8 @@ int eapol_socket_create_wrapper()
 {
     return socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_PAE));
 }
+
+int eapol_tx_socket_create_wrapper()
+{
+    return socket(PF_PACKET, SOCK_DGRAM, 0);
+}

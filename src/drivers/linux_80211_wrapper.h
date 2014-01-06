@@ -44,4 +44,6 @@ int epoll_register_wrapper(int sock, eloop_sock_handler handler,
                          void *eloop_data, void *user_data);
 
 void epoll_unregister_wrapper(int sock);
+
+int eapol_tx_socket_create_wrapper();
 #endif /* LINUX_80211_WRAPPER_H */

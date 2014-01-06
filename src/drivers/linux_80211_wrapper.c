@@ -128,3 +128,20 @@ int epoll_wrapper(int sock, eloop_sock_handler handler,
 {
     return eloop_register_read_sock(sock,handler,eloop_data,user_data);
 }
+
+int epoll_register_wrapper(int sock, eloop_sock_handler handler,
+                  void *eloop_data, void *user_data)
+{
+    return eloop_register_read_sock(sock,handler,eloop_data,user_data);
+}
+
+void epoll_unregister_wrapper(int sock)
+{
+    eloop_unregister_read_sock(sock);
+}
+
+
+int eapol_socket_create_wrapper()
+{
+    return socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_PAE));
+}

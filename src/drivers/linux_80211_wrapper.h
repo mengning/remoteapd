@@ -37,4 +37,34 @@ void nl_destroy_handles(struct nl_handle **handle);
 int epoll_wrapper(int sock, eloop_sock_handler handler,
 			     void *eloop_data, void *user_data);
 
+/* 
+ * callback:typedef void (*eloop_sock_handler)(int sock);
+ */			     
+int epoll_un_wrapper(int sock)
+
+/* 
+ * create socket
+ */	
+int epoll_create_socket_wrapper(int domain, int type, int protocol)
+
+/* 
+ * close socket
+ */	
+int epoll_close_wrapper(int sock);
+
+/* 
+ * set option
+ */	
+int epoll_setsockopt_wrapper(int sockfd, int level, int optname, void *optval, socklen_t optlen);
+
+/* 
+ * send socket
+ */	
+int epoll_sendto_wrapper (int sock, void * msg, int len, unsigned int flags, struct sockaddr * to, int tolen);
+
+/* 
+ * recieve msg
+ */
+int epoll_recvfrom_wrapper(int sock,void * msg, int len, unsigned int flags, struct sockaddr *from, socklen_t * fromlen);
+
 #endif /* LINUX_80211_WRAPPER_H */

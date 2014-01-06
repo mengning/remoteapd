@@ -123,8 +123,38 @@ int nl_recv_wrapper(struct nl_handle *handle, struct nl_cb *cb)
     return nl_recvmsgs(handle,cb);
 }
 
-int epoll_wrapper(int sock, eloop_sock_handler handler,
+int epoll_register_wrapper(int sock, eloop_sock_handler handler,
 			     void *eloop_data, void *user_data)
 {
     return eloop_register_read_sock(sock,handler,eloop_data,user_data);
+}
+
+int epoll_unregister_wrapper(int sock)
+{
+    return eloop_unregister_read_sock(sock);
+}
+
+int epoll_create_socket_wrapper(int domain, int type, int protocol)
+{
+    return socket(domain,type,protocol);
+}
+
+int epoll_close_wrapper(int sock)
+{
+    return close(sock);
+}
+
+int epoll_setsockopt_wrapper(int sockfd, int level, int optname, void *optval, socklen_t optlen)
+{
+	return setsockopt(sockfd,level,optname,optval,optlen);
+}
+
+int epoll_sendto_wrapper(int sock , void * msg, int len, unsigned int flags, struct sockaddr * to, int tolen)
+{
+	return sendto(sock, msg, len, flags, to, tolen );
+}
+
+int epoll_recvfrom_wrapper(int sock, void * msg, int len, unsigned int flags, struct sockaddr *from, socklen_t * fromlen)
+{
+	return recvfrom(sock, msg, len, flags, from, fromlen );
 }

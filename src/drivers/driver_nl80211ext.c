@@ -627,8 +627,8 @@ nl80211_get_wiphy_data_ap(struct i802_bss *bss)
 		return NULL;
 	}
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(w->nl_beacons),
+	/* epoll_register_wrapper */
+	epoll_register_wrapper(nl_socket_get_fd(w->nl_beacons),
 				 nl80211_recv_beacons, w, w->nl_beacons);
 
 	dl_list_add(&nl80211_wiphys, &w->list);
@@ -676,7 +676,7 @@ static void nl80211_put_wiphy_data_ap(struct i802_bss *bss)
 	if (!dl_list_empty(&w->bsss))
 		return;
 
-	eloop_unregister_read_sock(nl_socket_get_fd(w->nl_beacons));
+	epoll_unregister_wrapper(nl_socket_get_fd(w->nl_beacons));
 
 	nl_cb_put(w->nl_cb);
 	nl_destroy_handles(&w->nl_beacons);
@@ -2819,8 +2819,8 @@ static int wpa_driver_nl80211_init_nl_global(struct nl80211_global *global)
 	nl_cb_set(global->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
 		  process_global_event, global);
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(global->nl_event),
+	/* epoll_register_wrapper */
+	epoll_register_wrapper(nl_socket_get_fd(global->nl_event),
 				 wpa_driver_nl80211_event_receive,
 				 global->nl_cb, global->nl_event);
 
@@ -3048,14 +3048,14 @@ static void * wpa_driver_nl80211_init(void *ctx, const char *ifname,
 	if (wpa_driver_nl80211_finish_drv_init(drv))
 		goto failed;
 
-	drv->eapol_tx_sock = socket(PF_PACKET, SOCK_DGRAM, 0);
+	drv->eapol_tx_sock = epoll_create_socket_wrapper(PF_PACKET, SOCK_DGRAM, 0);
 	if (drv->eapol_tx_sock < 0)
 		goto failed;
 
 	if (drv->data_tx_status) {
 		int enabled = 1;
 
-		if (setsockopt(drv->eapol_tx_sock, SOL_SOCKET, SO_WIFI_STATUS,
+		if (epoll_setsockopt_wrapper(drv->eapol_tx_sock, SOL_SOCKET, SO_WIFI_STATUS,
 			       &enabled, sizeof(enabled)) < 0) {
 			wpa_printf(MSG_DEBUG,
 				"nl80211: wifi status sockopt failed\n");
@@ -3064,7 +3064,7 @@ static void * wpa_driver_nl80211_init(void *ctx, const char *ifname,
 				drv->capa.flags &=
 					~WPA_DRIVER_FLAGS_EAPOL_TX_STATUS;
 		} else {
-			eloop_register_read_sock(drv->eapol_tx_sock,
+			epoll_register_wrapper(drv->eapol_tx_sock,
 				wpa_driver_nl80211_handle_eapol_tx_status,
 				drv, NULL);
 		}
@@ -3137,8 +3137,8 @@ static int nl80211_alloc_mgmt_handle(struct i802_bss *bss)
 	if (bss->nl_mgmt == NULL)
 		return -1;
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(bss->nl_mgmt),
+	/* epoll_register_wrapper */
+	epoll_register_wrapper(nl_socket_get_fd(bss->nl_mgmt),
 				 wpa_driver_nl80211_event_receive, bss->nl_cb,
 				 bss->nl_mgmt);
 
@@ -3293,7 +3293,7 @@ static int nl80211_mgmt_subscribe_ap(struct i802_bss *bss)
 	return 0;
 
 out_err:
-	eloop_unregister_read_sock(nl_socket_get_fd(bss->nl_mgmt));
+	epoll_unregister_wrapper(nl_socket_get_fd(bss->nl_mgmt));
 	nl_destroy_handles(&bss->nl_mgmt);
 	return -1;
 }
@@ -3315,7 +3315,7 @@ static int nl80211_mgmt_subscribe_ap_dev_sme(struct i802_bss *bss)
 	return 0;
 
 out_err:
-	eloop_unregister_read_sock(nl_socket_get_fd(bss->nl_mgmt));
+	epoll_unregister_wrapper(nl_socket_get_fd(bss->nl_mgmt));
 	nl_destroy_handles(&bss->nl_mgmt);
 	return -1;
 }
@@ -3327,7 +3327,7 @@ static void nl80211_mgmt_unsubscribe(struct i802_bss *bss, const char *reason)
 		return;
 	wpa_printf(MSG_DEBUG, "nl80211: Unsubscribe mgmt frames handle %p "
 		   "(%s)", bss->nl_mgmt, reason);
-	eloop_unregister_read_sock(nl_socket_get_fd(bss->nl_mgmt));
+	epoll_unregister_wrapper(nl_socket_get_fd(bss->nl_mgmt));
 	nl_destroy_handles(&bss->nl_mgmt);
 
 	nl80211_put_wiphy_data_ap(bss);
@@ -3428,9 +3428,9 @@ static void wpa_driver_nl80211_deinit(void *priv)
 
 	bss->in_deinit = 1;
 	if (drv->data_tx_status)
-		eloop_unregister_read_sock(drv->eapol_tx_sock);
+		epoll_unregister_wrapper(drv->eapol_tx_sock);
 	if (drv->eapol_tx_sock >= 0)
-		close(drv->eapol_tx_sock);
+		epoll_close_wrapper(drv->eapol_tx_sock);
 
 	if (bss->nl_preq)
 		wpa_driver_nl80211_probe_req_report(bss, 0);
@@ -3463,8 +3463,8 @@ static void wpa_driver_nl80211_deinit(void *priv)
 	}
 
 	if (drv->eapol_sock >= 0) {
-		eloop_unregister_read_sock(drv->eapol_sock);
-		close(drv->eapol_sock);
+		epoll_unregister_wrapper(drv->eapol_sock);
+		epoll_close_wrapper(drv->eapol_sock);
 	}
 
 	if (drv->if_indices != drv->default_if_indices)
@@ -6225,7 +6225,7 @@ static void nl80211_remove_monitor_interface(
 		drv->monitor_ifidx = -1;
 	}
 	if (drv->monitor_sock >= 0) {
-		eloop_unregister_read_sock(drv->monitor_sock);
+		epoll_unregister_wrapper(drv->monitor_sock);
 		close(drv->monitor_sock);
 		drv->monitor_sock = -1;
 	}
@@ -6310,7 +6310,7 @@ nl80211_create_monitor_interface(struct wpa_driver_nl80211_data *drv)
 		goto error;
 	}
 
-	if (eloop_register_read_sock(drv->monitor_sock, handle_monitor_read,
+	if (epoll_register_wrapper(drv->monitor_sock, handle_monitor_read,
 				     drv, NULL)) {
 		printf("Could not register monitor read socket\n");
 		goto error;
@@ -6397,7 +6397,7 @@ static int nl80211_send_eapol_data(struct i802_bss *bss,
 	ll.sll_protocol = htons(ETH_P_PAE);
 	ll.sll_halen = ETH_ALEN;
 	os_memcpy(ll.sll_addr, addr, ETH_ALEN);
-	ret = sendto(bss->drv->eapol_tx_sock, data, data_len, 0,
+	ret = epoll_sendto_wrapper(bss->drv->eapol_tx_sock, data, data_len, 0,
 		     (struct sockaddr *) &ll, sizeof(ll));
 	if (ret < 0)
 		wpa_printf(MSG_ERROR, "nl80211: EAPOL TX: %s",
@@ -7759,7 +7759,7 @@ static void handle_eapol(int sock, void *eloop_ctx, void *sock_ctx)
 	int len;
 	socklen_t fromlen = sizeof(lladdr);
 
-	len = recvfrom(sock, buf, sizeof(buf), 0,
+	len = epoll_recvfrom_wrapper(sock, buf, sizeof(buf), 0,
 		       (struct sockaddr *)&lladdr, &fromlen);
 	if (len < 0) {
 		perror("recv");
@@ -7893,13 +7893,13 @@ static void *i802_init(struct hostapd_data *hapd,
 	if (linux_set_iface_flags(drv->global->ioctl_sock, bss->ifname, 1))
 		goto failed;
 
-	drv->eapol_sock = socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_PAE));
+	drv->eapol_sock = epoll_create_socket_wrapper(PF_PACKET, SOCK_DGRAM, htons(ETH_P_PAE));
 	if (drv->eapol_sock < 0) {
 		perror("socket(PF_PACKET, SOCK_DGRAM, ETH_P_PAE)");
 		goto failed;
 	}
 
-	if (eloop_register_read_sock(drv->eapol_sock, handle_eapol, drv, NULL))
+	if (epoll_register_wrapper(drv->eapol_sock, handle_eapol, drv, NULL))
 	{
 		printf("Could not register read socket for eapol\n");
 		goto failed;
@@ -8390,7 +8390,7 @@ static int wpa_driver_nl80211_probe_req_report(void *priv, int report)
 		} else if (bss->nl_preq) {
 			wpa_printf(MSG_DEBUG, "nl80211: Disable Probe Request "
 				   "reporting nl_preq=%p", bss->nl_preq);
-			eloop_unregister_read_sock(
+			epoll_unregister_wrapper(
 				nl_socket_get_fd(bss->nl_preq));
 			nl_destroy_handles(&bss->nl_preq);
 		}
@@ -8415,8 +8415,8 @@ static int wpa_driver_nl80211_probe_req_report(void *priv, int report)
 				   NULL, 0) < 0)
 		goto out_err;
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(bss->nl_preq),
+	/* epoll_register_wrapper */
+	epoll_register_wrapper(nl_socket_get_fd(bss->nl_preq),
 				 wpa_driver_nl80211_event_receive, bss->nl_cb,
 				 bss->nl_preq);
 
@@ -8740,7 +8740,7 @@ static void nl80211_global_deinit(void *priv)
 	nl_destroy_handles(&global->nl);
 
 	if (global->nl_event) {
-		eloop_unregister_read_sock(
+		epoll_unregister_wrapper(
 			nl_socket_get_fd(global->nl_event));
 		nl_destroy_handles(&global->nl_event);
 	}

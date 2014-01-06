@@ -37,4 +37,13 @@ void nl_destroy_handles(struct nl_handle **handle);
 int epoll_wrapper(int sock, eloop_sock_handler handler,
 			     void *eloop_data, void *user_data);
 
+
+int eapol_socket_create_wrapper();
+
+int epoll_register_wrapper(int sock, eloop_sock_handler handler,
+                         void *eloop_data, void *user_data);
+
+void epoll_unregister_wrapper(int sock);
+
+int eapol_tx_socket_create_wrapper();
 #endif /* LINUX_80211_WRAPPER_H */

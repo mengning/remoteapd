@@ -28,6 +28,7 @@
 #include "common/ieee802_11_common.h"
 #include "l2_packet/l2_packet.h"
 #include "netlink.h"
+#include "driver.h"
 #include "linux_80211_wrapper.h"
 
 #ifdef CONFIG_LIBNL20

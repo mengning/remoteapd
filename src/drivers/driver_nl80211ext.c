@@ -37,7 +37,6 @@
 #include "radiotap_iter.h"
 #include "rfkill.h"
 #include "driver.h"
-
 #include "linux_80211_wrapper.h"
 
 #ifndef SO_WIFI_STATUS
@@ -69,14 +68,12 @@ int nla_put_u32(struct nl_msg *msg, int attrtype, uint32_t value)
 	return nla_put(msg, attrtype, sizeof(uint32_t), &value);
 }
 #endif /* ANDROID */
-
 #ifdef CONFIG_LIBNL20
 /* libnl 2.0 compatibility code */
 #define nl_handle nl_sock
 #define nl80211_handle_alloc nl_socket_alloc_cb
 #define nl80211_handle_destroy nl_socket_free
 #endif /* CONFIG_LIBNL20 */
-
 
 #ifndef IFF_LOWER_UP
 #define IFF_LOWER_UP   0x10000         /* driver signals L1 up         */
@@ -307,81 +304,16 @@ struct nl80211_bss_info_arg {
 
 static int bss_info_handler(struct nl_msg *msg, void *arg);
 
-
-/* nl80211 code */
-static int ack_handler(struct nl_msg *msg, void *arg)
-{
-	int *err = arg;
-	*err = 0;
-	return NL_STOP;
-}
-
-static int finish_handler(struct nl_msg *msg, void *arg)
-{
-	int *ret = arg;
-	*ret = 0;
-	return NL_SKIP;
-}
-
-static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *err,
-			 void *arg)
-{
-	int *ret = arg;
-	*ret = err->error;
-	return NL_SKIP;
-}
-
-
-static int no_seq_check(struct nl_msg *msg, void *arg)
-{
-	return NL_OK;
-}
-
-
 static int send_and_recv(struct nl80211_global *global,
 			 struct nl_handle *nl_handle, struct nl_msg *msg,
 			 int (*valid_handler)(struct nl_msg *, void *),
 			 void *valid_data)
 {
-	struct nl_cb *cb;
-	int err = -ENOMEM;
-
-	cb = nl_cb_clone(global->nl_cb);
-	if (!cb)
-		goto out;
-
-	err = nl_send_wrapper(nl_handle, msg);
-	if (err < 0)
-		goto out;
-
-	err = 1;
-
-	nl_cb_err(cb, NL_CB_CUSTOM, error_handler, &err);
-	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, finish_handler, &err);
-	nl_cb_set(cb, NL_CB_ACK, NL_CB_CUSTOM, ack_handler, &err);
-
-	if (valid_handler)
-		nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM,
-			  valid_handler, valid_data);
-
-	while (err > 0)
-		nl_recv_wrapper(nl_handle, cb);
- out:
-	nl_cb_put(cb);
-	nlmsg_free(msg);
-	return err;
+    return send_and_recv_wrapper(global->nl_cb,
+			 nl_handle, msg,
+			 valid_handler,
+			 valid_data);
 }
-
-
-static int send_and_recv_msgs_global(struct nl80211_global *global,
-				     struct nl_msg *msg,
-				     int (*valid_handler)(struct nl_msg *, void *),
-				     void *valid_data)
-{
-	return send_and_recv(global, global->nl, msg, valid_handler,
-			     valid_data);
-}
-
 
 static int send_and_recv_msgs(struct wpa_driver_nl80211_data *drv,
 			      struct nl_msg *msg,
@@ -392,66 +324,10 @@ static int send_and_recv_msgs(struct wpa_driver_nl80211_data *drv,
 			     valid_handler, valid_data);
 }
 
-
-struct family_data {
-	const char *group;
-	int id;
-};
-
-
-static int family_handler(struct nl_msg *msg, void *arg)
-{
-	struct family_data *res = arg;
-	struct nlattr *tb[CTRL_ATTR_MAX + 1];
-	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
-	struct nlattr *mcgrp;
-	int i;
-
-	nla_parse(tb, CTRL_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
-		  genlmsg_attrlen(gnlh, 0), NULL);
-	if (!tb[CTRL_ATTR_MCAST_GROUPS])
-		return NL_SKIP;
-
-	nla_for_each_nested(mcgrp, tb[CTRL_ATTR_MCAST_GROUPS], i) {
-		struct nlattr *tb2[CTRL_ATTR_MCAST_GRP_MAX + 1];
-		nla_parse(tb2, CTRL_ATTR_MCAST_GRP_MAX, nla_data(mcgrp),
-			  nla_len(mcgrp), NULL);
-		if (!tb2[CTRL_ATTR_MCAST_GRP_NAME] ||
-		    !tb2[CTRL_ATTR_MCAST_GRP_ID] ||
-		    os_strncmp(nla_data(tb2[CTRL_ATTR_MCAST_GRP_NAME]),
-			       res->group,
-			       nla_len(tb2[CTRL_ATTR_MCAST_GRP_NAME])) != 0)
-			continue;
-		res->id = nla_get_u32(tb2[CTRL_ATTR_MCAST_GRP_ID]);
-		break;
-	};
-
-	return NL_SKIP;
-}
-
-
 static int nl_get_multicast_id(struct nl80211_global *global,
 			       const char *family, const char *group)
 {
-	struct nl_msg *msg;
-	int ret = -1;
-	struct family_data res = { group, -ENOENT };
-
-	msg = nlmsg_alloc();
-	if (!msg)
-		return -ENOMEM;
-	genlmsg_put(msg, 0, 0, genl_ctrl_resolve(global->nl, "nlctrl"),
-		    0, 0, CTRL_CMD_GETFAMILY, 0);
-	NLA_PUT_STRING(msg, CTRL_ATTR_FAMILY_NAME, family);
-
-	ret = send_and_recv_msgs_global(global, msg, family_handler, &res);
-	msg = NULL;
-	if (ret == 0)
-		ret = res.id;
-
-nla_put_failure:
-	nlmsg_free(msg);
-	return ret;
+    return nl_get_multicast_id_wrapper(global->nl_cb,global->nl,family,group);
 }
 
 
@@ -543,7 +419,7 @@ static void nl80211_recv_beacons(int sock, void *eloop_ctx, void *handle)
 
 	wpa_printf(MSG_EXCESSIVE, "nl80211: Beacon event message available");
 
-	nl_recv_wrapper(handle, w->nl_cb);
+	nl_recvmsgs(handle, w->nl_cb);
 }
 
 
@@ -627,8 +503,7 @@ nl80211_get_wiphy_data_ap(struct i802_bss *bss)
 		return NULL;
 	}
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(w->nl_beacons),
+	eloop_register_read_sock(nl_socket_get_fd(w->nl_beacons),
 				 nl80211_recv_beacons, w, w->nl_beacons);
 
 	dl_list_add(&nl80211_wiphys, &w->list);
@@ -2327,7 +2202,7 @@ static void wpa_driver_nl80211_event_receive(int sock, void *eloop_ctx,
 
 	wpa_printf(MSG_DEBUG, "nl80211: Event message available");
 
-	nl_recv_wrapper(handle, cb);
+	nl_recvmsgs(handle, cb);
 }
 
 
@@ -2819,8 +2694,7 @@ static int wpa_driver_nl80211_init_nl_global(struct nl80211_global *global)
 	nl_cb_set(global->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
 		  process_global_event, global);
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(global->nl_event),
+	eloop_register_read_sock(nl_socket_get_fd(global->nl_event),
 				 wpa_driver_nl80211_event_receive,
 				 global->nl_cb, global->nl_event);
 
@@ -2874,40 +2748,6 @@ static void wpa_driver_nl80211_rfkill_unblocked(void *ctx)
 	}
 	/* rtnetlink ifup handler will report interface as enabled */
 }
-
-
-static void nl80211_get_phy_name(struct wpa_driver_nl80211_data *drv)
-{
-	/* Find phy (radio) to which this interface belongs */
-	char buf[90], *pos;
-	int f, rv;
-
-	drv->phyname[0] = '\0';
-	snprintf(buf, sizeof(buf) - 1, "/sys/class/net/%s/phy80211/name",
-		 drv->first_bss.ifname);
-	f = open(buf, O_RDONLY);
-	if (f < 0) {
-		wpa_printf(MSG_DEBUG, "Could not open file %s: %s",
-			   buf, strerror(errno));
-		return;
-	}
-
-	rv = read(f, drv->phyname, sizeof(drv->phyname) - 1);
-	close(f);
-	if (rv < 0) {
-		wpa_printf(MSG_DEBUG, "Could not read file %s: %s",
-			   buf, strerror(errno));
-		return;
-	}
-
-	drv->phyname[rv] = '\0';
-	pos = os_strchr(drv->phyname, '\n');
-	if (pos)
-		*pos = '\0';
-	wpa_printf(MSG_DEBUG, "nl80211: interface %s in phy %s",
-		   drv->first_bss.ifname, drv->phyname);
-}
-
 
 static void wpa_driver_nl80211_handle_eapol_tx_status(int sock,
 						      void *eloop_ctx,
@@ -3030,7 +2870,7 @@ static void * wpa_driver_nl80211_init(void *ctx, const char *ifname,
 	if (nl80211_init_bss(bss))
 		goto failed;
 
-	nl80211_get_phy_name(drv);
+	nl80211_get_phy_name(drv->phyname,drv->first_bss.ifname);
 
 	rcfg = os_zalloc(sizeof(*rcfg));
 	if (rcfg == NULL)
@@ -3137,8 +2977,7 @@ static int nl80211_alloc_mgmt_handle(struct i802_bss *bss)
 	if (bss->nl_mgmt == NULL)
 		return -1;
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(bss->nl_mgmt),
+	eloop_register_read_sock(nl_socket_get_fd(bss->nl_mgmt),
 				 wpa_driver_nl80211_event_receive, bss->nl_cb,
 				 bss->nl_mgmt);
 
@@ -8415,8 +8254,7 @@ static int wpa_driver_nl80211_probe_req_report(void *priv, int report)
 				   NULL, 0) < 0)
 		goto out_err;
 
-	/* eloop_register_read_sock */
-	epoll_wrapper(nl_socket_get_fd(bss->nl_preq),
+	eloop_register_read_sock(nl_socket_get_fd(bss->nl_preq),
 				 wpa_driver_nl80211_event_receive, bss->nl_cb,
 				 bss->nl_preq);
 

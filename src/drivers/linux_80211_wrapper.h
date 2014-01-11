@@ -46,4 +46,9 @@ int epoll_register_wrapper(int sock, eloop_sock_handler handler,
 void epoll_unregister_wrapper(int sock);
 
 int eapol_tx_socket_create_wrapper();
+int i80211ext_server_init();
+    
+int send_msg_to_client(char* a,int len);
+int newfd;
+
 #endif /* LINUX_80211_WRAPPER_H */

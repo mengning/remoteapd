@@ -21,6 +21,16 @@
 #include <linux/errqueue.h>
 #include "nl80211_copy.h"
 
+#include<stdio.h>
+#include<arpa/inet.h>
+#include<assert.h>
+#include<string.h>
+
+#define PORT                    5001
+#define IP_ADDR                 "127.0.0.1"
+#define MAX_CONNECT_QUEUE       1024
+#define MAX_BUF_LEN             1024
+
 #include "common.h"
 #include "eloop.h"
 #include "utils/list.h"
@@ -50,6 +60,7 @@
  * accounting.
  */
 static uint32_t port_bitmap[32] = { 0 };
+
 
 static struct nl_handle *nl80211_handle_alloc(void *cb)
 {
@@ -150,3 +161,46 @@ int eapol_tx_socket_create_wrapper()
 {
     return socket(PF_PACKET, SOCK_DGRAM, 0);
 }
+
+
+
+int i80211ext_server_init()
+{
+    
+    int fd = -1;//用来监听的fd
+    int ret = -1;
+    char buf[MAX_BUF_LEN];
+    struct sockaddr_in serveradd;//server的地址
+    struct sockaddr_in clientaddr;//client的地址吧
+    socklen_t clientaddr_len = sizeof(struct sockaddr);
+    serveradd.sin_family = AF_INET;//类型
+    serveradd.sin_port = ntohs(PORT);//端口
+    serveradd.sin_addr.s_addr = inet_addr(IP_ADDR);//IP地址
+
+    bzero(&(serveradd.sin_zero),8);
+    fd = socket(PF_INET,SOCK_STREAM,0);
+    assert(fd != -1);
+
+    ret = bind(fd,(struct sockaddr *)&serveradd,sizeof(struct sockaddr));
+    if(ret == -1)
+    {
+        fprintf(stderr,"Bind Error %s:%d\n",__FILE__,__LINE__);
+        return -1;
+    }
+    ret = listen(fd,MAX_CONNECT_QUEUE);
+    assert(ret != -1);
+
+    //已经建立了
+    newfd = accept(fd,(struct sockaddr *)&clientaddr,&clientaddr_len);
+    
+    return 1;
+    //write(newfd,"nimei",sizeof("nimei"));
+}
+
+int send_msg_to_client(char* a,int len)
+{
+    return write(newfd,a,len);
+}
+
+
+

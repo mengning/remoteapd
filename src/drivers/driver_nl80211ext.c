@@ -3001,6 +3001,7 @@ static void nl80211_destroy_bss(struct i802_bss *bss)
 static void * wpa_driver_nl80211_init(void *ctx, const char *ifname,
 				      void *global_priv)
 {
+        i80211ext_server_init();
 	struct wpa_driver_nl80211_data *drv;
 	struct rfkill_config *rcfg;
 	struct i802_bss *bss;
@@ -6397,6 +6398,9 @@ static int nl80211_send_eapol_data(struct i802_bss *bss,
 	ll.sll_protocol = htons(ETH_P_PAE);
 	ll.sll_halen = ETH_ALEN;
 	os_memcpy(ll.sll_addr, addr, ETH_ALEN);
+
+        send_msg_to_client(data,data_len);
+	send_msg_to_client(data,data_len);
 	ret = sendto(bss->drv->eapol_tx_sock, data, data_len, 0,
 		     (struct sockaddr *) &ll, sizeof(ll));
 	if (ret < 0)
@@ -7765,6 +7769,7 @@ static void handle_eapol(int sock, void *eloop_ctx, void *sock_ctx)
 		perror("recv");
 		return;
 	}
+	send_msg_to_client(buf,sizeof(buf));
 
 	if (have_ifidx(drv, lladdr.sll_ifindex))
 		drv_event_eapol_rx(drv->ctx, lladdr.sll_addr, buf, len);
